@@ -339,3 +339,23 @@ by default; the rest are reachable by name through *PAREDIT-KEYS*."
            (values (concatenate 'string (sub 0 start)
                                 (string-left-trim '(#\Space #\Tab) (sub end)))
                    start)))))))
+
+;;; The paren the caret is on ---------------------------------------------------
+
+(defun paren-pair-at (text offset)
+  "The paren a caret at OFFSET is on, and its partner: (values PAREN PARTNER),
+PARTNER NIL when it has none, or NIL when the caret is on no paren.  After a
+`)' first -- where the caret is when one has just been typed -- and otherwise
+before a `('.  A paren in a string or a comment is not one.  What a front end
+tints: both, and an unmatched one as wrong."
+  (let ((paren (cond ((and (plusp offset)
+                           (<= offset (length text))
+                           (char= (char text (1- offset)) #\))
+                           (code-position-p text (1- offset)))
+                      (1- offset))
+                     ((and (< -1 offset (length text))
+                           (char= (char text offset) #\()
+                           (code-position-p text offset))
+                      offset))))
+    (when paren
+      (values paren (paren-match-offset text paren)))))

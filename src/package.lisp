@@ -12,6 +12,7 @@ editor, so that the same key does the same thing in each.")
    #:skip-non-code #:paren-match-offset #:code-position-p #:in-string-p #:token-at
    #:enclosing-list #:sexp-bounds #:inner-list #:sexp-span-at #:sexp-spans
    #:parent-siblings #:apply-structural-edit
+   #:paren-pair-at
    ;; Commands.
    #:insert-pair #:insert-quote #:close-or-skip
    #:delete-pair-backward #:delete-pair-forward #:delete-paren-p

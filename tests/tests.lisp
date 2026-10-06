@@ -46,7 +46,15 @@
   (multiple-value-bind (start end) (sexp-span-at "'(a) b" 0)
     (check (and (= start 0) (= end 4)) "a reader prefix belongs to the span"))
   (check (equal '((1 . 2) (3 . 4)) (sexp-spans "(a b)" 1 4)) "the children of a list are its spans")
-  (check (eql 0 (innermost-open-paren "(list #| ( |# a " 15)) "indentation looks past a block comment"))
+  (check (eql 0 (innermost-open-paren "(list #| ( |# a " 15)) "indentation looks past a block comment")
+  (check (equal '(9 0) (multiple-value-list (paren-pair-at "(list (a))" 10)))
+         "after a ) the caret is on it, and on its partner")
+  (check (equal '(6 8) (multiple-value-list (paren-pair-at "(list (a))" 6)))
+         "before a ( it is on that one")
+  (check (equal '(6 nil) (multiple-value-list (paren-pair-at "(list (a" 6)))
+         "an unmatched paren has no partner")
+  (check (null (paren-pair-at "(list \")\"" 9)) "a paren in a string is no paren")
+  (check (null (paren-pair-at "(list a)" 3)) "nor is the caret on one in a word"))
 
 (defmacro cl-user::sexp-edit-plain (&rest arguments)
   "A macro whose own lambda list says nothing of a body."
