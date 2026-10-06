@@ -31,10 +31,13 @@ caret, and writes back what changed.
   `splice`, `slurp-forward`, `barf-forward`, `slurp-backward`, `barf-backward`,
   `raise-sexp`, `transpose-sexps`.
 - **Indentation.** `indentation-at` and `newline-and-indent`: a body form two in
-  once its distinguished arguments are written (from a table of forms, from
+  once its distinguished arguments are written and those four in until then, as
+  Emacs has it (which operators have them comes from a table of forms, from
   `DEF...`, or from a macro's own `&body`), a call under its first argument, a
-  line under a previous element that begins its own line, a function defined by
-  `flet`, `labels` or `macrolet` like a `defun`, data one in. `defindent` adds to
+  line under a previous element that begins its own line, `loop`'s clauses
+  under the first, a function defined by `flet`, `labels` or `macrolet` like a
+  `defun`, and data -- `'(...)` and `#(...)`, but not a backquoted template --
+  one in. `defindent` adds to
   the table; `*lambda-list-function*` says where macros' lambda lists come from.
 
 The scanner knows strings, `;` and nested `#| |#` comments, `|symbols|`,
