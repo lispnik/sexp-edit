@@ -65,7 +65,7 @@ NIL means *PACKAGE*.")
     ("WITH-SLOTS" . 2) ("WITH-ACCESSORS" . 2) ("PRINT-UNREADABLE-OBJECT" . 1)
     ("WHEN" . 1) ("UNLESS" . 1) ("PROG1" . 1) ("DOLIST" . 1) ("DOTIMES" . 1)
     ("DO" . 2) ("DO*" . 2) ("DO-SYMBOLS" . 1) ("DO-EXTERNAL-SYMBOLS" . 1)
-    ("DO-ALL-SYMBOLS" . 1) ("LOOP" . 0)
+    ("DO-ALL-SYMBOLS" . 1)
     ("WITH-OPEN-FILE" . 1) ("WITH-OPEN-STREAM" . 1) ("WITH-INPUT-FROM-STRING" . 1)
     ("WITH-OUTPUT-TO-STRING" . 1) ("WITH-PACKAGE-ITERATOR" . 1)
     ;; Definitions: what anything named DEF... gets unless it is here.
@@ -268,20 +268,33 @@ existing line, OFFSET is where the line starts."
               (follow-or (1+ column)))
              ;; A function FLET, LABELS or MACROLET defines: like a DEFUN.
              ((local-definition-p text open) (+ column 2))
+             ;; LOOP's clauses line up under the first, when it is on LOOP's
+             ;; line, and are two in when it is not.
+             ((string-equal (operator-name token) "LOOP")
+              (let ((first (second elements)))
+                (follow-or (if (and first (same-line-p text (car operator) (car first)))
+                               (text-column text (car first))
+                               (+ column 2)))))
              (t
               (let ((count (operator-body-count token))
                     (arguments (rest elements)))
                 (cond
                   ((eq count :definition) (+ column 2))
                   ((and count (>= (length arguments) count)) (+ column 2))
-                  ;; Still among a body form's distinguished arguments, or an
-                  ;; ordinary call: under the previous argument if that
+                  ;; Still among a body form's distinguished arguments: four
+                  ;; in, as Emacs has it, unless the previous one begins its
+                  ;; line.
+                  (count (follow-or (+ column 4)))
+                  ;; An ordinary call: under the previous argument if that
                   ;; begins its line, else under the first if it is on the
                   ;; operator's line.
                   ((and arguments (same-line-p text (car operator) (car (first arguments))))
                    (follow-or (text-column text (car (first arguments)))))
-                  (count (follow-or (+ column 4)))
                   (t (follow-or (1+ column)))))))))))))
+
+(defun operator-name (token)
+  "TOKEN without its package prefix."
+  (subseq token (1+ (or (position #\: token :from-end t) -1))))
 
 (defun quoted-list-p (text open)
   "True when the list opening at OPEN is written as data: '(...) or #(...)."

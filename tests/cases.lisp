@@ -72,8 +72,10 @@
     (newline-and-indent "#(a b|)" "#(a b/  |)" "a vector is data")
     (newline-and-indent "#'(lambda (x)|)" "#'(lambda (x)/    |)" "and #'(lambda ...) is a function")
     (newline-and-indent "(let ((x 1))|)" "(let ((x 1))/  |)" "LET, which has no lambda list to ask")
-    (newline-and-indent "(destructuring-bind (a b)|)" "(destructuring-bind (a b)/                    |)"
-     "a distinguished argument not yet written lines up with the first")
+    (newline-and-indent "(destructuring-bind (a b)|)" "(destructuring-bind (a b)/    |)"
+     "a distinguished argument not yet written is four in, as in Emacs")
+    (newline-and-indent "(multiple-value-bind (a b)/    (values 1 2)|)"
+     "(multiple-value-bind (a b)/    (values 1 2)/  |)" "and after the last of them, the body is two in")
     (newline-and-indent "(unwind-protect|)" "(unwind-protect/    |)"
      "and with none on the line, it is four in")
     (newline-and-indent "(defmethod foo :around ((x t))|)" "(defmethod foo :around ((x t))/  |)"
@@ -89,7 +91,9 @@
      "a function FLET defines is indented like a DEFUN")
     (newline-and-indent "(labels ((f ()/           (g))|)" "(labels ((f ()/           (g))/         |)"
      "and the next definition lines up with the first")
-    (newline-and-indent "(loop for x in xs|)" "(loop for x in xs/  |)" "LOOP's clauses are two in")
+    (newline-and-indent "(loop for x in xs|)" "(loop for x in xs/      |)"
+     "LOOP's clauses line up under the first")
+    (newline-and-indent "(loop|)" "(loop/  |)" "and with none on LOOP's line, are two in")
     (newline-and-indent "(list a/      b|)" "(list a/      b/      |)" "a line follows the previous element")
     (newline-and-indent "(list/   a|)" "(list/   a/   |)"
      "even where whoever wrote it put it, not under the first argument")
