@@ -68,6 +68,9 @@
     (newline-and-indent "(foo :key 1|)" "(foo :key 1/     |)" "an unknown function is a call")
     (newline-and-indent "((a b)|)" "((a b)/ |)" "a list in operator position is one in")
     (newline-and-indent "'(a b|)" "'(a b/  |)" "and so is a quoted list")
+    (newline-and-indent "`(let ((x 1))|)" "`(let ((x 1))/   |)" "a backquoted list is code")
+    (newline-and-indent "#(a b|)" "#(a b/  |)" "a vector is data")
+    (newline-and-indent "#'(lambda (x)|)" "#'(lambda (x)/    |)" "and #'(lambda ...) is a function")
     (newline-and-indent "(let ((x 1))|)" "(let ((x 1))/  |)" "LET, which has no lambda list to ask")
     (newline-and-indent "(destructuring-bind (a b)|)" "(destructuring-bind (a b)/                    |)"
      "a distinguished argument not yet written lines up with the first")

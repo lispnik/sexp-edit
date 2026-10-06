@@ -259,8 +259,10 @@ existing line, OFFSET is where the line starts."
                       (text-column text (car last))
                       otherwise)))
            (cond
-             ;; A quoted list is data, whatever its first element looks like.
-             ((and (plusp open) (find (char text (1- open)) "'`"))
+             ;; A quoted list is data, whatever its first element looks like,
+             ;; and so is a vector.  A backquoted one is a template of code,
+             ;; and #'(lambda ...) is a function.
+             ((quoted-list-p text open)
               (follow-or (1+ column)))
              ((or (null operator) (not (token-symbol-like-p token)))
               (follow-or (1+ column)))
@@ -280,6 +282,13 @@ existing line, OFFSET is where the line starts."
                    (follow-or (text-column text (car (first arguments)))))
                   (count (follow-or (+ column 4)))
                   (t (follow-or (1+ column)))))))))))))
+
+(defun quoted-list-p (text open)
+  "True when the list opening at OPEN is written as data: '(...) or #(...)."
+  (and (plusp open)
+       (case (char text (1- open))
+         (#\' (not (and (> open 1) (char= (char text (- open 2)) #\#))))
+         (#\# t))))
 
 (defun token-symbol-like-p (token)
   "True when TOKEN could name an operator: not a list, a string, a keyword or a
