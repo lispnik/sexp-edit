@@ -1,0 +1,118 @@
+;;;; tests/tests.lisp -- (asdf:test-system "sexp-edit"), or make test.
+
+(in-package #:sexp-edit-tests)
+
+(defvar *failures* 0)
+(defvar *checks* 0)
+
+(defmacro check (form label &rest arguments)
+  `(progn
+     (incf *checks*)
+     (if ,form
+         (format t "  ok    ~?~%" ,label (list ,@arguments))
+         (progn (incf *failures*)
+                (format t "  FAIL  ~?~%" ,label (list ,@arguments))))))
+
+(defun run-case (command before after label)
+  (multiple-value-bind (new-text new-offset)
+      (run-paredit-command command (case-text before) (case-offset before))
+    (let ((got (if new-text (render new-text new-offset) :declined)))
+      (check (equal got after) "~a: ~s => ~s" label before got))))
+
+(defun corpus ()
+  (format t "~&The corpus of edits:~%")
+  (dolist (case *edit-cases*)
+    (apply #'run-case case)))
+
+(defun scanning ()
+  (format t "~&Scanning:~%")
+  (check (= 9 (paren-match-offset "(list (a))" 0)) "the outer open matches the outer close")
+  (check (= 0 (paren-match-offset "(list (a))" 9)) "and the outer close matches back")
+  (check (= 8 (paren-match-offset "(list (a))" 6)) "the inner pair matches too")
+  (check (null (paren-match-offset "(a \"(\"" 0)) "an open paren in a string does not close the form")
+  (check (= 7 (paren-match-offset "(a \"(\" )" 0)) "and the real close is found past it")
+  (check (= 7 (paren-match-offset "(a #\\( ) ; )" 0))
+         "a character literal is not a paren, nor one in a comment")
+  (check (= 14 (paren-match-offset "(a #\\Newline b)" 0)) "a named character is one token")
+  (check (eql 12 (paren-match-offset "(a #| ) |# b)" 0)) "a paren in a block comment is not one")
+  (check (eql 20 (paren-match-offset "(a #| #| ) |# ) |# b)" 0)) "and block comments nest")
+  (check (eql 10 (paren-match-offset "(a |x)y| b)" 0)) "a paren in a |symbol| is not one")
+  (check (eql 7 (paren-match-offset "(a \\) b)" 0)) "nor an escaped paren")
+  (check (not (code-position-p "(a \"x(\"" 5)) "inside a string is not code")
+  (check (not (code-position-p "(a ; x(" 6)) "inside a comment is not code")
+  (check (code-position-p "(a b)" 3) "ordinary code is")
+  (multiple-value-bind (start end) (sexp-bounds "(list (a) b)" 7)
+    (check (and (= start 6) (= end 9)) "the innermost form containing an offset"))
+  (multiple-value-bind (start end) (sexp-span-at "'(a) b" 0)
+    (check (and (= start 0) (= end 4)) "a reader prefix belongs to the span"))
+  (check (equal '((1 . 2) (3 . 4)) (sexp-spans "(a b)" 1 4)) "the children of a list are its spans")
+  (check (eql 0 (innermost-open-paren "(list #| ( |# a " 15)) "indentation looks past a block comment"))
+
+(defmacro cl-user::sexp-edit-plain (&rest arguments)
+  "A macro whose own lambda list says nothing of a body."
+  `(list ,@arguments))
+
+(defmacro cl-user::sexp-edit-body-after-one (thing &body body)
+  "A macro no table knows, so its indentation comes from its lambda list."
+  `(list ,thing ,@body))
+
+(defun indentation ()
+  (format t "~&Indentation, with what a front end binds:~%")
+  (flet ((nl (before after label)
+           (run-case 'newline-and-indent before after label)))
+    (let ((*indent-package* (find-package "COMMON-LISP-USER")))
+      (nl "(sexp-edit-body-after-one x|)" "(sexp-edit-body-after-one x/  |)"
+          "a macro's own &BODY says where its body starts"))
+    (let ((*indent-first-column* 9))
+      (nl "(defun foo ()|)" "(defun foo ()/           |)" "the prompt's width counts on the first line")
+      (nl "(list/  (a b|))" "(list/  (a b/     |))" "and not on the lines after it"))
+    (let ((*auto-indent-enabled* nil))
+      (nl "(defun foo ()|)" "(defun foo ()/|)" "with indentation off the line still breaks"))
+    (let ((*indent-package* (find-package "COMMON-LISP-USER"))
+          (*lambda-list-function* (lambda (symbol) (declare (ignore symbol)) '(a b &body c))))
+      (nl "(sexp-edit-plain a b|)" "(sexp-edit-plain a b/  |)"
+          "the lambda list may come from elsewhere, another Lisp's"))
+    (defindent "my-special" 0)
+    (unwind-protect
+         (nl "(my-special a|)" "(my-special a/  |)" "DEFINDENT adds to the table")
+      (defindent "my-special" nil)))
+  (check (= 11 (indentation-at (format nil "(format t \"a~%b") 13))
+         "an existing line in a string goes one past its opening quote")
+  (check (= 8 (text-column (format nil "~Ca" #\Tab) 1)) "a tab goes to the next multiple of eight")
+  (let ((*tab-width* 4))
+    (check (= 4 (text-column (format nil "~Ca" #\Tab) 1)) "or of *TAB-WIDTH*")))
+
+(defun keys ()
+  (format t "~&Keys:~%")
+  (multiple-value-bind (modifiers character) (parse-key-spec "C-M-f")
+    (check (and (= 2 (length modifiers)) (char= character #\f)) "C-M-f parses as both modifiers"))
+  (check (eq 'insert-pair (paredit-command-for #\( '())) "( is bound to INSERT-PAIR")
+  (check (and (eq 'delete-pair-backward (paredit-command-for #\Backspace '()))
+              (eq 'delete-pair-forward (paredit-command-for #\Rubout '())))
+         "Backspace and Delete are told apart")
+  (let ((original (copy-tree *paredit-keys*))
+        (told 0))
+    (let ((*keys-changed-functions* (list (lambda () (incf told)))))
+      (unwind-protect
+           (progn
+             (setf (paredit-key "C-M-t") 'transpose-sexps)
+             (check (eq 'transpose-sexps (paredit-command-for #\t '(:control :meta)))
+                    "a new binding takes effect at once")
+             (check (= 1 told) "and the front end is told")
+             (check (null (ignore-errors (setf (paredit-key "C-M-z") 'no-such-command)))
+                    "a command that does not exist is refused"))
+        (setf *paredit-keys* original))))
+  (let ((*paredit-enabled* nil))
+    (check (null (paredit-command-for #\( '())) "with paredit off, nothing is bound"))
+  (let ((noted nil))
+    (let ((*command-error-function* (lambda (command condition)
+                                      (declare (ignore condition)) (setf noted command))))
+      (check (null (run-paredit-command 'car "text" 0)) "a command that signals declines")
+      (check (eq noted 'car) "and the front end hears of it"))))
+
+(defun run ()
+  "Run every test; true when all pass."
+  (setf *failures* 0 *checks* 0)
+  (corpus) (scanning) (indentation) (keys)
+  (format t "~&~D checks, ~D failed~%" *checks* *failures*)
+  (zerop *failures*))

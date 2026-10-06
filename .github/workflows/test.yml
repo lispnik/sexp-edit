@@ -1,0 +1,18 @@
+name: test
+on: [push, pull_request]
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install SBCL and ECL
+        run: |
+          if [ "$RUNNER_OS" = macOS ]; then brew install sbcl ecl
+          else sudo apt-get update && sudo apt-get install -y sbcl ecl; fi
+      - name: SBCL
+        run: make test
+      - name: ECL
+        run: make test-ecl
